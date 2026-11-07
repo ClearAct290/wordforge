@@ -1,0 +1,7 @@
+# Dependencies for the Gradio frontend (app.py). On a Hugging Face Space, `gradio` is installed by the Space itself.
+torch>=2.3
+transformers>=4.44
+tokenizers>=0.19
+safetensors>=0.4
+huggingface_hub>=0.23
+gradio>=4.0

@@ -1,0 +1,103 @@
+:root {
+  --bg: #fafafa;
+  --surface: #ffffff;
+  --text: #1d1d1f;
+  --muted: #62625f;
+  --border: #dcdcd8;
+  --accent: #e8710a;
+  --accent-strong: #c25a00;   /* orange for text and button fills on light backgrounds */
+  --on-accent: #ffffff;
+  --error: #b3261e;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141414;
+    --surface: #1c1c1c;
+    --text: #ececea;
+    --muted: #a3a39f;
+    --border: #353532;
+    --accent: #f08a2c;
+    --accent-strong: #f08a2c;
+    --on-accent: #1a1006;
+    --error: #ff8a80;
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.55 var(--sans);
+  border-top: 3px solid var(--accent);
+}
+.page { min-height: calc(100vh - 3px); display: flex; flex-direction: column; padding: 0 1.25rem; }
+main, .doc { width: 100%; max-width: 38rem; margin: 0 auto; padding: 4rem 0 2.5rem; flex: 1; }
+
+h1 { margin: 0 0 .5rem; font-size: 2rem; line-height: 1.15; letter-spacing: -.01em; }
+.lede { margin: 0 0 2rem; color: var(--muted); max-width: 34rem; }
+
+form { display: flex; flex-direction: column; }
+label { font-size: .875rem; font-weight: 600; margin: 0 0 .35rem; }
+textarea, select {
+  width: 100%; font: inherit; color: var(--text); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 6px; padding: .6rem .75rem; margin-bottom: 1.1rem;
+}
+textarea { resize: vertical; min-height: 6.5rem; }
+select { max-width: 15rem; }
+textarea::placeholder { color: var(--muted); opacity: .75; }
+textarea:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+
+button {
+  align-self: flex-start; font: inherit; font-weight: 600; cursor: pointer;
+  color: var(--on-accent); background: var(--accent-strong); border: 0; border-radius: 6px;
+  padding: .6rem 1.4rem;
+}
+button:hover { filter: brightness(1.07); }
+button:disabled { opacity: .6; cursor: default; filter: none; }
+
+.error { margin: 1rem 0 0; color: var(--error); }
+.loading { display: flex; justify-content: center; padding: 2.25rem 0 0; }
+.spinner {
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 3px solid var(--border); border-top-color: var(--accent);
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+#result { margin-top: 2rem; }
+#result:empty { display: none; }
+.entry {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+  padding: 1.25rem 1.5rem 1.4rem; animation: appear .18s ease-out;
+}
+@keyframes appear { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.entry-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: .25rem .75rem;
+  padding-bottom: .7rem; margin-bottom: .8rem; border-bottom: 1px solid var(--border); }
+.headword { font: 700 2rem/1.2 var(--serif); margin: 0; word-break: break-word; }
+.pos { font: italic 1.05rem var(--serif); color: var(--accent-strong); }
+.sense { display: flex; gap: .6rem; margin: 0; font: 1.1rem/1.6 var(--serif); }
+.sense .n { color: var(--muted); }
+
+footer { text-align: center; color: var(--muted); font-size: .85rem; padding: 1.5rem 0 1.75rem; }
+a { color: var(--accent-strong); text-underline-offset: 2px; }
+a:hover { text-decoration-thickness: 2px; }
+
+/* EULA page */
+.doc h1 { font-size: 1.75rem; }
+.doc h2 { font-size: 1.05rem; margin: 2rem 0 .4rem; }
+.doc p, .doc li { margin: 0 0 .75rem; }
+.doc ul { padding-left: 1.25rem; margin: 0 0 .75rem; }
+.doc .meta { color: var(--muted); margin-bottom: 1.5rem; }
+.doc .caps { font-size: .93rem; }
+.back { display: inline-block; margin-bottom: 1.5rem; font-size: .9rem; }
+
+@media (max-width: 480px) { main, .doc { padding-top: 2.5rem; } select { max-width: none; } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 1.6s; } .entry { animation: none; } }
+
+[hidden] { display: none !important; }

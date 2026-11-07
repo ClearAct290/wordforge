@@ -1,0 +1,12 @@
+# NOTE: install a CUDA build of PyTorch first (see README). On Windows plain `pip install torch` gives a CPU-only build.
+torch>=2.3
+transformers>=4.44
+tokenizers>=0.19
+safetensors>=0.4
+numpy>=1.24
+requests>=2.31
+tqdm>=4.66
+nltk>=3.8            # only used for the optional WordNet source
+fastapi>=0.110
+uvicorn>=0.29
+tomli>=2.0; python_version < "3.11"

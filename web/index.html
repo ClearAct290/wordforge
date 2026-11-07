@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WordForge</title>
+  <meta name="description" content="WordForge coins a new English word for any definition you give it.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="page">
+    <main>
+      <h1>WordForge</h1>
+      <p class="lede">Describe a meaning and pick a part of speech. WordForge coins a new English word for it, using the patterns it learned from a full dictionary.</p>
+
+      <form id="forge" autocomplete="off" novalidate>
+        <label for="definition">Definition</label>
+        <textarea id="definition" name="definition" rows="4" maxlength="300" required
+                  placeholder="a person who collects and studies old coins"></textarea>
+
+        <label for="pos">Part of speech</label>
+        <select id="pos" name="pos">
+          <option value="noun">Noun</option>
+          <option value="adjective">Adjective</option>
+          <option value="verb">Verb</option>
+          <option value="adverb">Adverb</option>
+          <option value="pronoun">Pronoun</option>
+          <option value="article">Article</option>
+          <option value="preposition">Preposition</option>
+          <option value="conjunction">Conjunction</option>
+          <option value="interjection">Interjection</option>
+        </select>
+
+        <button type="submit" id="go">Generate</button>
+      </form>
+
+      <p id="error" class="error" role="alert" hidden></p>
+      <div id="loading" class="loading" hidden aria-label="Generating"><span class="spinner" aria-hidden="true"></span></div>
+      <section id="result" aria-live="polite"></section>
+    </main>
+
+    <footer>
+      GPL 2.0 2026 - WordForge - <a href="/license">EULA License</a>
+    </footer>
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>
