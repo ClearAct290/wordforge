@@ -193,4 +193,3 @@ top_k           = 40
 top_p           = 0.95
 max_word_tokens = 20
 allow_existing_words = false # false = coin new words, never return a word that is already in the dictionary
-allow_existing_words = false # false = coin new words, never return a word that is already in the dictionary
