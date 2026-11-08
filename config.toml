@@ -35,6 +35,13 @@ max_def_chars   = 220        # first definitions longer than this are cut at a w
 min_def_chars   = 6
 skip_inflections = true      # skip "plural of X", "alternative form of X", misspellings, etc.
 
+# Extra dictionaries (the [[data.extra_sources]] blocks further down). They are NOT used for the first
+# training run; "train more" merges them later (python wordforge.py --more, or answer the prompt at boot).
+# Duplicate words are always skipped. Set this to true to merge them into the very first build instead.
+# (This key used to sit below the [[data.sources]] blocks, where TOML attaches it to the last source
+# instead of to [data], so it has been moved up here.)
+extra_in_first_build = false
+
 [[data.sources]]
 name = "wiktionary-en"
 type = "kaikki_raw"          # English Wiktionary, via the kaikki.org raw dump (all languages, filtered to English)
@@ -44,9 +51,64 @@ url  = "https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz"
 name = "wordnet"
 type = "wordnet"             # Princeton WordNet through NLTK
 
-# Extra dictionaries. They are NOT used for the first training run; "train more" merges them later
-# (python wordforge.py --more, or answer the prompt at boot). Duplicate words are always skipped.
-extra_in_first_build = false
+# ---------------------------------------------------------------------------------------------------
+# Extra English dictionaries
+# Order matters: when two sources define the same word, the earlier one wins.
+# Source types kaikki_raw / wordnet / json_words / tsv already exist. The types wn_lmf, wordset_json,
+# jsonl and gcide are new and need a loader each (see notes under each block).
+# ---------------------------------------------------------------------------------------------------
+
+[[data.extra_sources]]
+name = "oewn-2025"
+type = "wn_lmf"              # Open English WordNet 2025 (WN-LMF XML, gzipped). Maintained successor to Princeton WordNet 3.x,
+                             # adds many modern words the NLTK WordNet lacks. CC BY 4.0. One definition per synset, POS from the lexical entry.
+url  = "https://en-word.net/static/english-wordnet-2025.xml.gz"
+enabled = true
+# Optional "plus" edition (adds validated proper nouns / names). Names are poor targets for a word coiner, so it is off.
+# url = "https://en-word.net/static/english-wordnet-2025-plus.xml.gz"
+
+[[data.extra_sources]]
+name = "wiktionary-simple"
+type = "kaikki_raw"          # Simple English Wiktionary (short, plain-language definitions), same kaikki.org format as the main dump. CC BY-SA 4.0.
+lang_codes = ["en"]
+url  = "https://kaikki.org/simplewiktionary/raw-wiktextract-data.jsonl.gz"
+enabled = true
+
+[[data.extra_sources]]
+name = "wordset"
+type = "wordset_json"        # Wordset Dictionary: cleaned-up, human-edited rewrite of WordNet definitions. One JSON file per letter,
+                             # each a big object keyed by word with a "meanings" list (def + speech_part). Check the repo LICENSE before redistributing.
+base_url = "https://raw.githubusercontent.com/wordset/wordset-dictionary/master/data/"
+files = ["a.json", "b.json", "c.json", "d.json", "e.json", "f.json", "g.json", "h.json", "i.json", "j.json",
+         "k.json", "l.json", "m.json", "n.json", "o.json", "p.json", "q.json", "r.json", "s.json", "t.json",
+         "u.json", "v.json", "w.json", "x.json", "y.json", "z.json"]   # misc.json (emoji, symbols) is left out on purpose
+enabled = true
+
+[[data.extra_sources]]
+name = "cloudbytes-v2"
+type = "jsonl"               # CloudBytes "English-Dictionary-Open-Source" v2: Webster's 1913 + Open English WordNet 2025+ in one file
+                             # (388k definitions of 221k words; rows carry a `source` of webster1913 or oewn). Webster rows are public domain,
+                             # oewn rows are CC BY 4.0. Overlaps with the blocks above, which is harmless because duplicates are skipped.
+url  = "https://raw.githubusercontent.com/CloudBytes-Academy/English-Dictionary-Open-Source/main/v2/dictionary.jsonl.gz"
+# Column names are my best guess: run `zcat dictionary.jsonl.gz | head -n 1` and fix these three to match.
+fields = { word = "word", pos = "pos", definition = "definition" }
+enabled = true
+
+[[data.extra_sources]]
+name = "gcide"
+type = "gcide"               # GNU Collaborative International Dictionary of English 0.54 (Webster's 1913 revised and extended, ~130k headwords).
+                             # Tarball of CIDE.A ... CIDE.Z in GCIDE markup. GPL.
+url  = "https://ftp.gnu.org/gnu/gcide/gcide-0.54.tar.xz"
+enabled = true
+
+# Webster's 1913 (public domain, "OPTED") as JSON: {"word": [{"partOfSpeech": "noun", "text": "..."}]}
+# Download the JSON files yourself (for example from the OPTED-to-JSON project, github.com/johnridesabike/OPTED-to-JSON)
+# into data/opted/ and enable it. Off by default because cloudbytes-v2 and gcide already contain Webster's 1913.
+[[data.extra_sources]]
+name = "webster-1913"
+type = "json_words"
+path = "data/opted"          # a .json file or a folder of .json files
+enabled = false
 
 [[data.extra_sources]]
 name = "wiktionary-latin"    # Latin lemmas with English definitions (roots that English words are built from)
@@ -56,6 +118,32 @@ latin_only = true
 url  = "https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz"
 enabled = true
 
+# Older stages of English and neighbouring languages, English definitions from Wiktionary (CC BY-SA 4.0).
+# Off by default: they are archaic or foreign and can pull word shapes away from modern English, like the European block below.
+[[data.extra_sources]]
+name = "wiktionary-old-english"
+type = "kaikki_raw"
+lang_codes = ["ang"]
+latin_only = true
+url  = "https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz"
+enabled = false
+
+[[data.extra_sources]]
+name = "wiktionary-middle-english"
+type = "kaikki_raw"
+lang_codes = ["enm"]
+latin_only = true
+url  = "https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz"
+enabled = false
+
+[[data.extra_sources]]
+name = "wiktionary-old-french-norse"   # Old French and Old Norse, two big donors of English vocabulary
+type = "kaikki_raw"
+lang_codes = ["fro", "non"]
+latin_only = true
+url  = "https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz"
+enabled = false
+
 [[data.extra_sources]]
 name = "wiktionary-european"  # French, German, Spanish, Italian, Portuguese, Dutch (large; can pull word shapes away from English)
 type = "kaikki_raw"
@@ -64,13 +152,14 @@ latin_only = true
 url  = "https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz"
 enabled = false
 
-# Webster's 1913 (public domain, "OPTED") as JSON: {"word": [{"partOfSpeech": "noun", "text": "..."}]}
-# Download the JSON files yourself (for example from the OPTED-to-JSON project) into data/opted/ and enable it:
-# [[data.extra_sources]]
-# name = "webster-1913"
-# type = "json_words"
-# path = "data/opted"        # a .json file or a folder of .json files
-# enabled = true
+# Word lists WITHOUT definitions. They never add training entries; they are only a blocklist so that, with
+# allow_existing_words = false, the generator also rejects real English words that no dictionary above defines.
+# Needs a small loader of its own (one word per line).
+[[data.exclusion_wordlists]]
+name = "dwyl-english-words"  # ~466k English words, public domain / Unlicense
+type = "wordlist"
+url  = "https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt"
+enabled = true
 
 # Add your own dictionaries with a TSV file (word <TAB> part-of-speech <TAB> definition), local path or URL:
 # [[data.sources]]
@@ -103,4 +192,5 @@ temperature     = 0.85
 top_k           = 40
 top_p           = 0.95
 max_word_tokens = 20
+allow_existing_words = false # false = coin new words, never return a word that is already in the dictionary
 allow_existing_words = false # false = coin new words, never return a word that is already in the dictionary
