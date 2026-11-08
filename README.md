@@ -11,7 +11,8 @@ Hugging Face upload guide are included in `model/`.
 Runs on **Windows, Linux and macOS**.
 
 - Trains a real model: real tensors, fp16 safetensors output, standard `LlamaForCausalLM` architecture
-- Builds its own dictionary: English Wiktionary and WordNet, plus optional extra open dictionaries, duplicates removed
+- Builds its own dictionary: English Wiktionary and WordNet, plus optional extra open dictionaries (Open English WordNet,
+  Simple English Wiktionary, Wordset, Webster's 1913 / GCIDE and more), duplicates removed
 - Picks the model size from your GPU: 6 GB of VRAM or less runs in low-gpu (tiny) mode; no CUDA GPU falls back to CPU
 - **Train it more** later: at boot it offers to keep training when the model is smaller than your size limit
 - Plain HTTP on port 80 by default, HTTPS by config (domain, PEM files, redirect)
@@ -37,7 +38,7 @@ starts the server at `http://localhost/`. Later runs go straight to the server.
 
 | | Minimum | Recommended |
 |---|---|---|
-| Python | 3.10 | 3.11 or 3.12 |
+| Python | 3.11 (the config is read with `tomllib`) | 3.11 or 3.12 |
 | GPU | none (CPU fallback, smoke tests only) | NVIDIA, compute capability 7.0+ (RTX 20-series or newer) |
 | VRAM | 6 GB (low-gpu mode) | 8 GB or more |
 | RAM | 8 GB | 16 GB |
@@ -107,6 +108,7 @@ Running it as a background service (systemd, Windows, launchd) is covered in [se
 2. **Dictionary build.** Downloads the English Wiktionary dump (resumable), reads WordNet, merges them and writes
    `data/dictionary.txt`. Takes tens of minutes depending on your connection and CPU. The large raw download is deleted
    afterwards unless `keep_raw = true` or an extra dictionary that has not been merged yet needs the same file.
+   The extra dictionaries are not part of this first build unless you set `[data] extra_in_first_build = true`.
 3. **Training.** Trains the tokenizer and the model, prints validation loss after each epoch, stops at the epoch limit or
    `max_minutes`. Press `Ctrl+C` once to stop early; the model is saved as it stands.
 4. **Save.** Writes the fp16 model to `model/` and prints sample generations as a self-check.
@@ -119,7 +121,7 @@ If a model already exists and it is **smaller than `max_model_gb`** (default 4.5
 ```
 The model in model/ is 0.18 GB; your size limit is 4.5 GB.
 Do you want to train it more?
-  [1] Continue training this model (keeps its weights; 1 extra dictionaries not merged yet (wiktionary-latin))
+  [1] Continue training this model (keeps its weights; 5 extra dictionaries not merged yet (oewn-2025, wiktionary-simple, wordset, cloudbytes-v2, ...))
   [2] Train a new model from scratch on all dictionaries (slower; may pick a larger model)
   [3] Not now, start the server  (default)
   [4] Do not ask again
@@ -136,17 +138,49 @@ Do you want to train it more?
 Skip the question and do it directly with `python wordforge.py --more`. If continued training fails (for example out of
 memory), the existing model is kept and the server starts with it.
 
-**Extra dictionaries** live under `[[data.extra_sources]]` in `config.toml`. They are open-licence sources:
+### Extra dictionaries
 
-| Name | What | Default |
+They live under `[[data.extra_sources]]` in `config.toml` and are open-licence sources. They are merged **in the order
+they appear**; when two sources define the same word, the earlier one wins and the later one is skipped.
+
+| Name | What | Licence | Default |
+|---|---|---|---|
+| `oewn-2025` | Open English WordNet 2025, the maintained successor to Princeton WordNet, with many modern words | CC BY 4.0 | on |
+| `wiktionary-simple` | Simple English Wiktionary, short plain-language definitions (kaikki.org dump) | CC BY-SA 4.0 | on |
+| `wordset` | Wordset Dictionary, a cleaned-up human-edited rewrite of WordNet definitions, one JSON file per letter | see its repo | on |
+| `cloudbytes-v2` | Webster's 1913 plus Open English WordNet 2025+ in a single JSONL file | public domain / CC BY 4.0 | on |
+| `gcide` | GNU Collaborative International Dictionary of English 0.54 (Webster's 1913 revised and extended) | GPL | on |
+| `wiktionary-latin` | Latin lemmas with English definitions, from the same kaikki.org dump | CC BY-SA 4.0 | on |
+| `webster-1913` | Public-domain Webster 1913 / OPTED as JSON that you download into `data/opted/` (redundant with `cloudbytes-v2` and `gcide`) | public domain | off, needs your files |
+| `wiktionary-old-english` | Old English lemmas with English definitions | CC BY-SA 4.0 | off |
+| `wiktionary-middle-english` | Middle English lemmas with English definitions | CC BY-SA 4.0 | off |
+| `wiktionary-old-french-norse` | Old French and Old Norse lemmas with English definitions | CC BY-SA 4.0 | off |
+| `wiktionary-european` | French, German, Spanish, Italian, Portuguese, Dutch | CC BY-SA 4.0 | off |
+| your own | a TSV `word<TAB>pos<TAB>definition` file or URL | | add it |
+
+A word already in the dictionary is never added twice. The non-English and historical sources are Latin-script only and
+are meant to add word roots; they can pull generated words away from modern English, which is why only Latin is on by
+default among them.
+
+**Source types.** Each block names a loader in `type`:
+
+| `type` | Reads | Used by |
 |---|---|---|
-| `wiktionary-latin` | Latin lemmas with English definitions, from the same kaikki.org dump | on |
-| `wiktionary-european` | French, German, Spanish, Italian, Portuguese, Dutch | off |
-| `webster-1913` (example in `config.toml`) | Public-domain Webster 1913 / OPTED as JSON that you download into `data/opted/` | off, needs your files |
-| your own | a TSV `word<TAB>pos<TAB>definition` file or URL | add it |
+| `kaikki_raw` | Wiktionary dumps from kaikki.org (`lang_codes`, `latin_only` filters) | Wiktionary sources |
+| `wordnet` | Princeton WordNet through NLTK | `wordnet` |
+| `json_words` | `{"word": [{"partOfSpeech": "noun", "text": "..."}]}` | `webster-1913` |
+| `tsv` | `word<TAB>pos<TAB>definition` | your own files |
+| `wn_lmf` | WN-LMF XML (gzipped), as published by Open English WordNet | `oewn-2025` |
+| `wordset_json` | Wordset's per-letter JSON files (`base_url` and `files`) | `wordset` |
+| `jsonl` | JSON Lines, with `fields = { word, pos, definition }` naming the columns | `cloudbytes-v2` |
+| `gcide` | the GCIDE tarball (`CIDE.A` ... `CIDE.Z`) | `gcide` |
 
-A word already in the dictionary is never added twice. The non-English sources are Latin-script only and are meant to
-add word roots; they can pull generated words away from English, which is why only Latin is on by default.
+A source that fails to download or parse is skipped with a warning and the build goes on with the others.
+
+**Exclusion word lists.** `[[data.exclusion_wordlists]]` holds plain word lists (one word per line, `type = "wordlist"`)
+that have no definitions and add no training entries. With `allow_existing_words = false` the generator also rejects any
+word on these lists, so it will not hand back a real English word that none of the dictionaries happen to define. The
+default list is [dwyl/english-words](https://github.com/dwyl/english-words).
 
 ## How it works
 
@@ -163,7 +197,7 @@ add word roots; they can pull generated words away from English, which is why on
   HF tokenizer files, `known_words.txt`, `wordforge_meta.json`. It loads with `transformers`
   (`AutoModelForCausalLM`) and with runtimes and hubs that support the `LlamaForCausalLM` architecture.
 - **Generation** (`wf/engine.py`): samples several candidates in one batch, drops any that already exist in the dictionary
-  (`allow_existing_words = true` allows them), and returns one of the three most likely.
+  or on an exclusion word list (`allow_existing_words = true` allows them), and returns one of the three most likely.
 - **Server** (`wf/server.py`): FastAPI and uvicorn. `GET /`, `GET /license`, `POST /api/generate`, `GET /api/health`,
   per-IP rate limit, security headers.
 
@@ -193,7 +227,9 @@ Everything is in `config.toml`; every key is optional. The ones you will touch m
 | `[hardware] device` | `auto` | `auto`, `cuda`, `cpu`, `mps` |
 | `[hardware] low_vram_gib` | `6.5` | GPUs at or below this use low-gpu mode |
 | `[data] max_corpus_gb` | `4.0` | Stop adding dictionary entries at this size |
-| `[data] extra_sources` | Latin on | Dictionaries merged by "train more" |
+| `[data] extra_in_first_build` | `false` | `true` merges the extra dictionaries into the very first build |
+| `[[data.extra_sources]]` | see table above | Dictionaries merged by "train more", in priority order |
+| `[[data.exclusion_wordlists]]` | dwyl list on | Word lists the generator must never return |
 | `[train] preset` | `auto` | `auto`, `nano`, `tiny`, `small`, `base`, `large`, `xl`, `max` |
 | `[train] max_minutes` | `90` | Training time budget, `0` = none |
 | `[train] max_model_gb` | `4.5` | Size ceiling; also the threshold for the "train more" question |
@@ -201,6 +237,9 @@ Everything is in `config.toml`; every key is optional. The ones you will touch m
 | `[generate] allow_existing_words` | `false` | `true` lets it return words that already exist |
 
 Use another config file with `--config` or the `WORDFORGE_CONFIG` environment variable.
+
+**TOML placement.** In TOML a key belongs to the nearest `[table]` or `[[array]]` header above it. Keep plain `[data]` keys
+(such as `extra_in_first_build`) **above** the first `[[data.sources]]` block, or they attach to the last source instead.
 
 ## HTTPS
 
@@ -259,6 +298,9 @@ LICENSE               GNU General Public License, version 2
   of text (about 1.4M entries). The 4 GB corpus setting is a ceiling, not something the open data can fill, and the model is
   not padded to 4.5 GB: with about 50M training tokens a 2B-parameter model mostly memorises, so `auto` picks about 90M
   parameters on a typical GPU. With a large GPU (80 GB class) you can force `preset = "max"`.
+- **Extra dictionaries overlap.** Open English WordNet, Wordset, Webster's 1913 and GCIDE share a lot of vocabulary with
+  Wiktionary and with each other. Duplicates are dropped, so the extras mostly add less common and modern words rather
+  than doubling the corpus.
 - **CPU training** exists as a fallback and is only good for a smoke test. Train on a GPU.
 - **Quality.** Output is plausible, dictionary-shaped words (fitting endings and roots), not lookups.
 - **Testing status.** The dictionary builder, batching, config, boot prompt and HTTPS redirect were tested offline. The GPU
@@ -274,8 +316,20 @@ LICENSE               GNU General Public License, version 2
   GPL section 6 forbids adding restrictions for people who receive GPL code. To keep the back-end closed, publish only the
   front-end (`web/`, `model/app.py`) and docs on GitHub and ship the back-end compiled (for example with Nuitka); to
   publish everything, license the back-end under the GPL too and change section 3 and 4 of the EULA.
-- Dictionary data: English Wiktionary text is CC BY-SA, Princeton WordNet has its own license, Webster 1913 is public
-  domain. Check what that means for distributing a model trained on them.
+- Dictionary data and what it means for a trained model:
+
+  | Source | Licence |
+  |---|---|
+  | English, Simple English and other Wiktionary text | CC BY-SA 4.0 |
+  | Princeton WordNet | its own WordNet licence |
+  | Open English WordNet | CC BY 4.0 |
+  | Webster's 1913 / OPTED | public domain |
+  | GCIDE | GNU General Public License |
+  | Wordset | check the licence in its repository |
+  | dwyl/english-words (exclusion list only) | Unlicense |
+
+  Attribution and share-alike terms may reach a model trained on this data and anything you distribute with it. Check
+  what that means before you publish a model.
 - The EULA is a template, not legal advice.
 
 ## Troubleshooting
@@ -292,8 +346,16 @@ build does not support your GPU architecture; try another CUDA build of PyTorch.
 **`https.enabled = true but certfile/keyfile are missing`.** The paths in `[https]` are empty, wrong, or unreadable by the
 user running WordForge.
 
+**`tomllib.TOMLDecodeError: Cannot overwrite a value (at line N, column M)`.** `config.toml` has a key twice in the same
+table, or a key that clashes with a table of the same name. Open the file at line N. This usually happens after pasting a
+new `config.toml` on top of an old one, or after adding a block twice. Replace the whole file with a clean copy, and test
+it with `python -c "import tomllib; tomllib.load(open('config.toml','rb')); print('ok')"`.
+
 **The dictionary download fails or stops.** Run the command again; the download resumes. If WordNet cannot download its data,
 run `python -m nltk.downloader wordnet`. A failing source is skipped and the build goes on with the others.
+
+**A source is skipped with "unknown source type".** The `type` in that `config.toml` block has no loader in
+`wf/dataset.py`. Add the loader or set `enabled = false` for that block.
 
 **`No trained model in model/`.** Run `python wordforge.py train` and let it finish.
 
