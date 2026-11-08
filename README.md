@@ -6,6 +6,8 @@ WordForge trains a language model **from scratch** on a dictionary of `word / pa
 entries (PyTorch on an NVIDIA GPU, CPU fallback), then serves it through a small web page. A Gradio frontend and a
 Hugging Face upload guide are included in `model/`.
 
+(This model is lightweight enough to use fans, me, the dev, doesn't want mass water consumption)
+
 Runs on **Windows, Linux and macOS**.
 
 - Trains a real model: real tensors, fp16 safetensors output, standard `LlamaForCausalLM` architecture
